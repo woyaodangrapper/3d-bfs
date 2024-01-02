@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🌏I code and sometimes paint when I have time.🌏</title>
+    <!-- 实列 -->
+    <script type="text/javascript" src="map-main.js"></script>
+    <script type="text/javascript" src="22-1.0.2-最短路径计算2D.js"></script>
+  </head>
+  <style>
+    /* 设置画布大小 */
+    canvas {
+      border: 0px solid #000;
+    }
+    body,
+    html {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #0b0b2f;
+    }
+    .map-container {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .map-canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 999;
+      height: 100%;
+      pointer-events: none;
+      background-color: rgba(240, 248, 255, 0);
+    }
+  </style>
+  <body>
+    <div class="map-canvas-container">
+      <canvas id="myCanvas" width="400" height="400"></canvas>
+    </div>
+  </body>
+</html>
+<script>
+  // let promise = new mapMain({
+  //   noBasemap: false,
+  //   cameraPosition: {
+  //     y: 37.530522,
+  //     x: -78.050958,
+  //     z: 3556781.39,
+  //     h: 0.04,
+  //     p: -1.5657102441,
+  //     r: 0,
+  //   },
+  // });
+  // promise.then(viewer => {
+  //   pageInit.init({
+  //     viewer,
+  //     canvas: document.getElementById("myCanvas"),
+  //   });
+  // });
+  pageInit.init({
+      canvas: document.getElementById("myCanvas"),
+    });
+</script>
