@@ -42,11 +42,12 @@ var pageInit = {
     context.arc(x, y, size, 0, 2 * Math.PI);
     context.fill();
   },
-  createCanvasLine: function (shortestPath, { color = "#2440b3", size = 2 } = {}) {
+  createCanvasLines: function (shortestPath, { color = "#2440b3", size = 2 } = {}) {
     if (shortestPath.length === 0) {
       return;
     }
     const context = this.context
+    context.beginPath();
     context.moveTo(shortestPath[0].x, shortestPath[0].y);
     for (let index = 1; index < shortestPath.length; index++) {
       const element = shortestPath[index];
@@ -55,6 +56,42 @@ var pageInit = {
     context.lineWidth = size;
     context.strokeStyle = color
     context.stroke();
+  },
+  showGraph(graph, { size = 2, color = "#FF0000" } = {}) {
+    var context = this.context
+    context.beginPath();
+    graph.forEach(elements => {
+      context.moveTo(elements[0].x, elements[0].y);
+      for (let index = 1; index < elements.length; index++) {
+        const element = elements[index];
+        context.lineTo(element.x, element.y);
+      }
+      context.lineWidth = size;
+      context.strokeStyle = color
+      context.stroke();
+    });
+  },
+  showSplitLines(splitLines) {
+    let init = 0;
+    let timer = setInterval(() => {
+      let elements = splitLines[init]
+      context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.showGraph(graph)
+      context.beginPath();
+
+      context.moveTo(elements[0].x, elements[0].y);
+      context.lineTo(elements[1].x, elements[1].y);
+      context.lineWidth = 2;
+      context.strokeStyle = getRandomColor()
+
+      context.closePath();
+      context.stroke();
+
+      init++;
+      if (init >= splitLines.length) {
+        clearInterval(timer)
+      }
+    }, 1000);
   },
   resizeCanvas: function () {
     const canvas = this.canvas;
@@ -66,129 +103,253 @@ var pageInit = {
     }
     resize()
   },
-  test() {
-    // 示例数据
-    const graph = [
-      [{ x: 298, y: 52 }, { x: 185, y: 440 }],
-      [{ x: 59, y: 163 }, { x: 654, y: 271 }],
-      [{ x: 38, y: 196 }, { x: 528, y: 417 }],
-      [{ x: 415, y: 63 }, { x: 239, y: 465 }]
-    ];
+  algorithm: {
+    // 分割线段函数
+    splitLines(crossPoints, lines) {
+      const newLines = [];
 
+      const splitLinesIndex = new Set();
+      for (const crossPoint of crossPoints) {
+        const { point, lines: connectedLines } = crossPoint;
+        for (const connectedLine of connectedLines) {
+          const { start, end, lineIndex } = connectedLine;
+          // 计算分割点的坐标
+          const splitPointX = point.x;
+          const splitPointY = point.y;
 
-    var context = this.context
-    context.beginPath();
-    graph.forEach(elements => {
-
-      context.moveTo(elements[0].x, elements[0].y);
-      for (let index = 1; index < elements.length; index++) {
-        const element = elements[index];
-        context.lineTo(element.x, element.y);
-      }
-      context.lineWidth = 2;
-      context.strokeStyle = "#f73131"
-      context.stroke();
-
-    });
-
-    const start = { x: 298, y: 52 }; // 家的位置
-    const end = { x: 185, y: 440 };   // 便利店的位置
-    this.createCanvasPoint({ x: start.x, y: start.y, color: "#FF0000" })
-    this.createCanvasPoint({ x: end.x, y: end.y, color: "#FF0000" })
-
-
-    // 转换数据结构为BFS算法所需形式
-    function convertToBFS(graph) {
-      const adjacencyList = new Map();
-
-      // Build the adjacency list from the given graph
-      for (let i = 0; i < graph.length; i++) {
-        for (let j = 0; j < graph[i].length; j++) {
-          const currentNode = graph[i][j];
-
-          // Create an empty array for the current node in the adjacency list
-          adjacencyList.set(getNodeKey(currentNode), []);
-
-          // Add edges to the adjacency list
-          if (j > 0) {
-            const prevNode = graph[i][j - 1];
-            addEdge(adjacencyList, currentNode, prevNode);
+          // 只有当线段还没有被分割时，才进行分割
+          if (!splitLinesIndex.has(lineIndex)) {
+            // 分割线段
+            const newLine1 = [start, { x: splitPointX, y: splitPointY }];
+            newLines.push(newLine1);
+            splitLinesIndex.add(lineIndex);
           }
 
-          if (i > 0) {
-            const upperNode = graph[i - 1][j];
-            addEdge(adjacencyList, currentNode, upperNode);
-          }
+          // 对于已经被分割的线段，我们只需要添加一条新线段
+          const newLine2 = [{ x: splitPointX, y: splitPointY }, end];
+          newLines.push(newLine2);
         }
       }
 
-      return adjacencyList;
-    }
-
-    function addEdge(adjacencyList, node1, node2) {
-      adjacencyList.get(getNodeKey(node1)).push(getNodeKey(node2));
-      adjacencyList.get(getNodeKey(node2)).push(getNodeKey(node1));
-    }
-
-    function getNodeKey(node) {
-      return `${node.x},${node.y}`;
-    }
-    function bfs(graph, start, target) {
-      const visited = new Set();
-      const queue = [[start, []]];
-      while (queue.length > 0) {
-        const [currentNode, path] = queue.shift();
-
-        if (currentNode === target) {
-          return path.concat(currentNode);
+      // 添加未被分割的线段
+      for (const line of lines) {
+        if (!crossPoints.some((crossPoint) => crossPoint.lines.some((l) => l.lineIndex === lines.indexOf(line)))) {
+          newLines.push(line);
         }
+      }
 
-        if (!visited.has(currentNode)) {
-          visited.add(currentNode);
-          const neighbors = graph.get(currentNode) || [];
+      return newLines;
+    },
+    splitLines2(intersections, graph) {
+      // 遍历交叉点数据
+      const newGraph = [];
+      for (const intersection of intersections) {
+        // 找到交叉点所在的线段
+        const lines = intersection.lines;
+        for (const line of lines) {
+          const index = graph.findIndex((g) => g[0] === line.start && g[1] === line.end);
+          if (index !== -1) {
+            // 计算交叉点在线段上的比例
+            const start = graph[index][0];
+            const end = graph[index][1];
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const x = intersection.point.x - start.x;
+            const y = intersection.point.y - start.y;
+            const ratio = (x * dx + y * dy) / (dx * dx + dy * dy);
 
-          for (const neighbor of neighbors) {
-            if (!visited.has(neighbor)) {
-              queue.push([neighbor, path.concat(currentNode)]);
+            // 将线段分割为两个线段
+            const newLine1 = [start, { x: start.x + ratio * dx, y: start.y + ratio * dy }];
+            const newLine2 = [newLine1[1], end];
+
+            // 添加到新图中
+            newGraph.push(newLine1);
+            newGraph.push(newLine2);
+          }
+        }
+      }
+      return newGraph
+    },
+    // 计算最短路径
+    dijkstra(graph, start, end) {
+      const nodes = new Set();
+      const distances = {};
+      const previous = {};
+      const path = [];
+
+      // 初始化距离和前置节点
+      graph.forEach(edge => {
+        edge.forEach(point => {
+          nodes.add(`${point.x},${point.y}`);
+          distances[`${point.x},${point.y}`] = Infinity;
+          previous[`${point.x},${point.y}`] = null;
+        });
+      });
+
+      distances[`${start.x},${start.y}`] = 0;
+
+      while (nodes.size > 0) {
+        const currentNode = getMinDistanceNode(nodes, distances);
+        nodes.delete(currentNode);
+
+        graph.forEach(edge => {
+          const [point1, point2] = edge;
+
+          if (`${point1.x},${point1.y}` === currentNode || `${point2.x},${point2.y}` === currentNode) {
+            const neighbor = `${point1.x},${point1.y}` === currentNode ? `${point2.x},${point2.y}` : `${point1.x},${point1.y}`;
+            const newDistance = distances[currentNode] + distance(point1, point2);
+
+            if (newDistance < distances[neighbor]) {
+              distances[neighbor] = newDistance;
+              previous[neighbor] = currentNode;
+            }
+          }
+        });
+      }
+
+      let current = `${end.x},${end.y}`;
+      while (current !== null) {
+        path.unshift(current);
+        current = previous[current];
+      }
+
+      return path.map(point => {
+        const [x, y] = point.split(',').map(coord => parseInt(coord));
+        return { x, y };
+      });
+
+      function getMinDistanceNode(nodes, distances) {
+        return Array.from(nodes).reduce((minNode, node) => (
+          distances[node] < distances[minNode] ? node : minNode
+        ), Array.from(nodes)[0]);
+      }
+
+      function distance(point1, point2) {
+        const dx = point1.x - point2.x;
+        const dy = point1.y - point2.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    },
+    // 计算交点
+    calculateIntersectionPoints(graph) {
+      const intersections = [];
+      for (let i = 0; i < graph.length - 1; i++) {
+        const line1 = graph[i];
+
+        for (let j = i + 1; j < graph.length; j++) {
+          const line2 = graph[j];
+
+          for (let k = 0; k < line1.length - 1; k++) {
+            const p1 = line1[k];
+            const p2 = line1[k + 1];
+
+            for (let l = 0; l < line2.length - 1; l++) {
+              const p3 = line2[l];
+              const p4 = line2[l + 1];
+
+              const intersection = this.calculateIntersection(p1, p2, p3, p4);
+              if (intersection) {
+                intersections.push({
+                  point: intersection,
+                  lines: [{ start: p1, end: p2, lineIndex: i }, { start: p3, end: p4, lineIndex: j }],
+                });
+              }
             }
           }
         }
       }
 
-      return null; // If no path is found
-    }
+      return intersections;
+    },
+    // 计算交点坐标 (辅助函数) (https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection)
+    calculateIntersection(p1, p2, p3, p4) {
+      const ua =
+        ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) /
+        ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
+      const ub =
+        ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) /
+        ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
 
-    function convertStringToXYObject(inputString) {
-      const result = [];
-
-      for (let index = 0; index < inputString.length; index++) {
-        const element = inputString[index];
-        const coordinates = element.split(',').map(Number);
-        for (let i = 0; i < coordinates.length; i += 2) {
-          result.push({ x: coordinates[i], y: coordinates[i + 1] });
-        }
+      if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+        const intersectionX = p1.x + ua * (p2.x - p1.x);
+        const intersectionY = p1.y + ua * (p2.y - p1.y);
+        return { x: intersectionX, y: intersectionY };
       }
 
-      return result;
+      return null;
+    },
+  },
+  test() {
+    // 一个或多个线条二维坐标数组
+    const graph =
+      [
+        [{ x: 298, y: 52 }, { x: 185, y: 440 }],
+        [{ x: 59, y: 163 }, { x: 654, y: 271 }],
+        // [{ x: 38, y: 196 }, { x: 528, y: 417 }],
+        [{ x: 415, y: 63 }, { x: 239, y: 465 }]
+      ];
+    const intersectionPoints = this.algorithm.calculateIntersectionPoints(graph);
+
+    // const splitLines = this.algorithm.splitLines(intersectionPoints, graph)
+    // console.log("Intersection Points:", intersectionPoints, splitLines);
+    // for (const crossPoint of intersectionPoints) {
+    //   this.createCanvasPoint({ x: crossPoint.point.x, y: crossPoint.point.y, color: "#FFF" })
+    // }
+    this.test2()
+    // for (const crossPoint of intersectionPoints) {
+    //   for (const connectedLine of crossPoint.lines) {
+    //     const { start, end } = connectedLine;
+    //     this.createCanvasPoint({ x: start.x, y: start.y, color: "#FFF" })
+    //     this.createCanvasPoint({ x: end.x, y: end.y, color: "#FFF" })
+    //   }
+    // }
+
+    // const start = { x: 298, y: 52 };
+    // const end = { x: 415, y: 63 };
+    // this.createCanvasPoint({ x: start.x, y: start.y, color: "#FF0000", size: 10 })
+    // this.createCanvasPoint({ x: end.x, y: end.y, color: "#FF0000", size: 10 })
+    // const shortestPath = dijkstra(splitLines, start, end);
+    // this.createCanvasLines(shortestPath, { size: 2 })
+    // console.log("最短路径：", shortestPath, splitLines);
+  },
+  test2() {
+    const graph = [
+      [{ x: 298, y: 52 }, { x: 185, y: 440 }],
+      [{ x: 59, y: 163 }, { x: 654, y: 271 }],
+      [{ x: 415, y: 63 }, { x: 239, y: 465 }]
+    ];
+
+    const intersectionPoints = this.algorithm.calculateIntersectionPoints(graph);
+    console.log("Intersection Points:", intersectionPoints);
+    const splitLines = this.algorithm.splitLines2(intersectionPoints, graph);
+
+    const context = this.context
+    const canvas = this.canvas
+
+    for (let index = 0; index < splitLines.length; index++) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      const [start, end] = splitLines[index];
+
+      // let py = 40 * (index + 1)
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.lineWidth = 2;
+      context.strokeStyle = getRandomColor()
+      context.stroke();
+      debugger
+
     }
 
-    const startNode = "298,52";
-    const targetNode = "59,163";
-    const bfsGraph = convertToBFS(graph);
 
-    const shortestPath = bfs(bfsGraph, startNode, targetNode);
-
-    if (shortestPath) {
-      console.log(`Shortest path from ${startNode} to ${targetNode}: ${shortestPath}`);
-      const xyObjects = convertStringToXYObject(shortestPath);
-      this.createCanvasLine(xyObjects)
-
-    } else {
-      console.log(`No path found from ${startNode} to ${targetNode}`);
-    }
-
-    debugger
-    console.log(`转换数据结构为BFS算法所需形式:`, bfsGraph);
-
+    console.log(splitLines);
   }
+}
+function getRandomColor() {
+  var letters = "0123456789ABCDEF";
+  var color = "#";
+  for (var i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
 }
