@@ -104,55 +104,83 @@ var pageInit = {
     resize()
   },
   test() {
-    // 一个或多个线条二维坐标数组
-    const graph =
+    const graph = [
       [
-        [{ x: 298, y: 52 }, { x: 185, y: 440 }],
-        [{ x: 59, y: 163 }, { x: 654, y: 271 }],
-        [{ x: 38, y: 196 }, { x: 528, y: 417 }],
-        [{ x: 415, y: 63 }, { x: 239, y: 465 }]
-      ];
-    this.showGraph(graph, { color: "#FF0000", size: 2 })
+        [
+          {
+            "x": -694416.0495296326,
+            "y": -4867396.382496719,
+            "z": 4047910.8222462116,
+            "oid": 1
+          },
+          {
+            "x": 2414898.405468124,
+            "y": -4509098.135957064,
+            "z": 3797164.0685321507,
+            "oid": 2
+          }
+        ],
+        [
+          {
+            "x": 281457.14862696663,
+            "y": -4409737.845540441,
+            "z": 4583891.880250573,
+            "oid": 2
+          },
+          {
+            "x": 292161.48318572156,
+            "y": -5584052.014914569,
+            "z": 3057593.8519711196,
+            "oid": 3
+          }
+        ],
+        [
+          {
+            "x": 1668344.0031517649,
+            "y": -4245766.986666892,
+            "z": 4442474.199420432,
+            "oid": 3
+          },
+          {
+            "x": 1628435.0135987992,
+            "y": -5343070.536198258,
+            "z": 3068227.2685943153,
+            "oid": 4
+          }
+        ]
+      ]]
 
-    const intersectionPoints = this.algorithm.calculateLinesWithIntersections(graph);
-    console.log(intersectionPoints)
-    for (const crossPoint of intersectionPoints) {
-      for (const point of crossPoint.points) {
-        this.createCanvasPoint({ x: point.x, y: point.y, color: "#FFF", size: 5 })
-      }
-    }
-    const splitLines = this.algorithm.splitWithLines(intersectionPoints)
-    console.log("Intersection splitLines Points:", intersectionPoints, splitLines);
-
-    // const context = this.context
-    // const canvas = this.canvas
-    // for (let index = 0; index < splitLines.length; index++) {
-    //   const [start, end] = splitLines[index];
-    //   context.beginPath();
-    //   context.moveTo(start.x, start.y);
-    //   context.lineTo(end.x, end.y);
-    //   context.lineWidth = 2;
-    //   context.strokeStyle = "#FF0000"
-    //   context.stroke();
-    // }
-    const start = { x: 298, y: 52 };
-    const end = { x: 38, y: 196 };
-    this.createCanvasPoint({ x: start.x, y: start.y, color: "#FF0000", size: 10 })
-    this.createCanvasPoint({ x: end.x, y: end.y, color: "#FF0000", size: 10 })
-    const shortestPath = this.algorithm.dijkstra(splitLines, start, end);
-    this.createCanvasLines(shortestPath, { size: 5 })
-
-    console.log("最短路径：", shortestPath);
+    const newGraph = this.webMercatorWgs84Array(graph)
+    debugger
+    const start = { x: 85917.43041571067, y: -4679563.389112163 };
+    const end = { x: 726174.3487238389, y: -5373659.101816352 };
+    const intersectionPoints = this.algorithm.calculateLinesWithIntersections(newGraph);
+    // const splitLines = this.algorithm.splitWithLines(intersectionPoints)
+    debugger
+    // const shortestPath = this.algorithm.dijkstra(splitLines, start, end);
   },
-  webMercatorCoordinatesArray(cartesians, zoom = 1023) {
+  webMercatorWgs84Array(cartesians) {
     let newCoordinates = []
     for (const cartesian of cartesians) {
-      for (const data of cartesian) {
-        const coordinates = this.webMercatorCoordinates(data, zoom)
-        newCoordinates.push(coordinates)
+      for (const [start, end] of cartesian) {
+        const startWgs84 = this.webMercatorWgs84(start)
+        const endWgs84 = this.webMercatorWgs84(end)
+        newCoordinates.push([startWgs84, endWgs84])
       }
     }
     return newCoordinates
+  },
+  webMercatorWgs84(cartesian) {
+    const cartesianCoordinates = new Cesium.Cartesian3(cartesian.x, cartesian.y, cartesian.z);
+    const wgs84Coordinates = Cesium.Cartographic.fromCartesian(cartesianCoordinates);
+    const longitude = Cesium.Math.toDegrees(wgs84Coordinates.longitude);// 经度值
+    const latitude = Cesium.Math.toDegrees(wgs84Coordinates.latitude);
+    const height = wgs84Coordinates.height;
+    return {
+      x: longitude,
+      y: latitude,
+      z: height,
+    }
   },
   algorithm: {
     // 分割线段函数
@@ -259,39 +287,16 @@ var pageInit = {
         // return Math.sqrt(dx * dx + dy * dy);
       }
     },
-    // 计算交点 
-    calculateIntersectionPoints(graph) {
-      const intersections = [];
-      for (let i = 0; i < graph.length - 1; i++) {
-        const line1 = graph[i];
-
-        for (let j = i + 1; j < graph.length; j++) {
-          const line2 = graph[j];
-
-          for (let k = 0; k < line1.length - 1; k++) {
-            const p1 = line1[k];
-            const p2 = line1[k + 1];
-
-            for (let l = 0; l < line2.length - 1; l++) {
-              const p3 = line2[l];
-              const p4 = line2[l + 1];
-
-              const intersection = this.calculateIntersection(p1, p2, p3, p4);
-              if (intersection) {
-                intersections.push({
-                  point: intersection,
-                  lines: [{ start: p1, end: p2, lineIndex: i }, { start: p3, end: p4, lineIndex: j }],
-                });
-              }
-            }
-          }
-        }
-      }
-
-      return intersections;
-    },
     // 计算每条线段与其他线段的交点
     calculateLinesWithIntersections(graph) {
+      // // 定义两条线
+      // const line1 = turf.lineString([[lon1, lat1], [lon2, lat2]]);
+      // const line2 = turf.lineString([[lon3, lat3], [lon4, lat4]]);
+
+      // // 计算交叉点
+      // const intersection = turf.lineIntersect(line1, line2);
+
+
       const intersections = [];
       for (let i = 0; i < graph.length; i++) {
         const line1 = graph[i];
@@ -309,6 +314,21 @@ var pageInit = {
                 const p3 = line2[l];
                 const p4 = line2[l + 1];
 
+                const aa = { p1, p2, p3, p4 }
+                // 定义两条线的坐标
+                const x1 = turf.lineString([
+                  [p1.x, p1.y],
+                  [p2.x, p2.y],
+                ]);
+
+                const x2 = turf.lineString([
+                  [p3.x, p3.y],
+                  [p4.x, p4.y],
+                ]);
+
+                // 找到两条线的交叉点
+                const intersectionx = turf.lineIntersect(x1, x2);
+                debugger
                 const intersection = this.calculateIntersection(p1, p2, p3, p4);
                 if (intersection) {
                   lineIntersections.push(intersection);
@@ -327,26 +347,8 @@ var pageInit = {
       }
 
       return intersections;
-    },
-    // 计算交点坐标 (辅助函数) (https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection)
-    calculateIntersection(p1, p2, p3, p4) {
-      const ua =
-        ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) /
-        ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
-      const ub =
-        ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) /
-        ((p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y));
-      if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
-        const intersectionX = p1.x + ua * (p2.x - p1.x);
-        const intersectionY = p1.y + ua * (p2.y - p1.y);
-        // Round the intersection coordinates to 12 decimal places
-        const roundedIntersectionX = parseFloat(intersectionX.toFixed(12));
-        const roundedIntersectionY = parseFloat(intersectionY.toFixed(12));
-        // 为了解决后续算法出现的精度问题，这里将交点坐标保留12位小数
-        return { x: roundedIntersectionX, y: roundedIntersectionY };
-      }
 
-      return null;
+
     },
   },
 }

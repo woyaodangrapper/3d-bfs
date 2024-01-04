@@ -43,11 +43,12 @@ class mapMain {
     return new Promise((resolve, reject) => {
       try {
         window.onload = async () => {
-          let viewer = that._viewer = await this._createMap();
+          let viewer = null
+          if (this.earth) viewer = that._viewer = await this._createMap();
           if (!this.noTerrain) that._terrainProvider(viewer)
-          that._locationTimeNoon(viewer)
+          if (this.earth) that._locationTimeNoon(viewer)
           if (!this.noBasemap) that._loadingImageUnderlays(viewer)
-          that._enableSphereStyleEnhancements(viewer)
+          if (this.earth) that._enableSphereStyleEnhancements(viewer)
           if (this.toInitialPosition) that._flyToDefaultPosition(viewer, that.cameraPosition)
           resolve(viewer)
         };
