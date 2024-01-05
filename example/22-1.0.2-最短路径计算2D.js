@@ -115,6 +115,7 @@ var pageInit = {
     this.showGraph(graph, { color: "#FF0000", size: 2 })
 
     const intersectionPoints = this.algorithm.calculateLinesWithIntersections(graph);
+    debugger
     console.log(intersectionPoints)
     for (const crossPoint of intersectionPoints) {
       for (const point of crossPoint.points) {

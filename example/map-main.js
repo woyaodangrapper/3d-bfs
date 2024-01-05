@@ -31,6 +31,7 @@ class mapMain {
     this.toInitialPosition = (options.toInitialPosition != null ? options.toInitialPosition : defaultOptions.toInitialPosition);
     this.noTerrain = (options.noTerrain != null ? options.noTerrain : defaultOptions.noTerrain);
     this.noBasemap = (options.noBasemap != null ? options.noBasemap : defaultOptions.noBasemap);
+    this.earth = (options.earth != null ? options.earth : defaultOptions.earth);
     if (!this.cameraPosition || !this.cameraPosition) {
       console.log("初始化失败：请确认相机位置与视点位置正确！");
       return;

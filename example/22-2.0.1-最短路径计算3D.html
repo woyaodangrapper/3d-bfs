@@ -6,15 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🌏I code and sometimes paint when I have time.🌏</title>
     <!-- 实列 -->
-    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+    <script src="turf@6/turf.min.js"></script>
     <script type="text/javascript" src="map-main.js"></script>
     <script type="text/javascript" src="22-2.0.1-最短路径计算3D.js"></script>
   </head>
   <style>
-    /* 设置画布大小 */
-    canvas {
-      border: 0px solid #000;
-    }
     body,
     html {
       height: 100%;
@@ -31,32 +27,27 @@
       padding: 0;
       overflow: hidden;
     }
-    .map-canvas-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      z-index: 999;
-      height: 100%;
-      pointer-events: none;
-      background-color: rgba(240, 248, 255, 0);
-    }
   </style>
   <body>
-    <div class="map-canvas-container">
-      <canvas id="myCanvas" width="400" height="400"></canvas>
-    </div>
+    <div class="map-container" style="z-index: 999" id="mapBox"></div>
   </body>
 </html>
 <script>
-
   let promise = new mapMain({
-    earth: false,
+    earth: true,
+    noBasemap: false,
+    cameraPosition: {
+      y: 37.530522,
+      x: -78.050958,
+      z: 3556781.39,
+      h: 0.04,
+      p: -1.5657102441,
+      r: 0,
+    },
   });
-  promise.then(() => {
+  promise.then((viewer) => {
     pageInit.init({
-      canvas: document.getElementById("myCanvas"),
+      viewer: viewer,
     });
   });
-
 </script>
